@@ -38,6 +38,8 @@ public class FamilyWebServer {
         void onGrantMinutes(int minutes);
         void onKidsLimitChanged(int minutes);
         void onNightScheduleUpdated();
+        void onRemoteAppsLockToggle(boolean unlock);
+        boolean isAppsUnlocked();
         String getMusicStatus();
     }
 
@@ -216,13 +218,18 @@ public class FamilyWebServer {
                 sendJson(out, "{\"ok\":true}");
             } else if (path.equals("/api/night-schedule")) {
                 String en = params.get("en");
-                String off = params.get("off");
-                String on = params.get("on");
+                String s1a = params.get("s1a"), s1b = params.get("s1b");
+                String s2a = params.get("s2a"), s2b = params.get("s2b");
                 if (en != null) prefs.setNightScheduleEnabled("1".equals(en));
-                if (off != null && on != null && off.contains(":") && on.contains(":")) {
-                    prefs.setNightTimes(off.trim(), on.trim());
+                if (s1a != null && s1b != null && s2a != null && s2b != null
+                        && s1a.contains(":") && s1b.contains(":") && s2a.contains(":") && s2b.contains(":")) {
+                    prefs.setActiveSlots(s1a.trim(), s1b.trim(), s2a.trim(), s2b.trim());
                 }
                 bridge.onNightScheduleUpdated();
+                sendJson(out, "{\"ok\":true}");
+            } else if (path.equals("/api/app-lock")) {
+                String unlock = params.get("unlock");
+                bridge.onRemoteAppsLockToggle("1".equals(unlock));
                 sendJson(out, "{\"ok\":true}");
             } else if (path.equals("/api/schedule/add")) {
                 int idx = parseInt(params.get("idx"), -1);
@@ -401,12 +408,21 @@ public class FamilyWebServer {
             + "<option value='🌱 NGUYÊN TẮC SỐNG'>🌱 NGUYÊN TẮC SỐNG</option></select>"
             + "<textarea id='qLines' rows='4' placeholder='Mỗi dòng 1 câu ca dao hoặc nguyên tắc...'></textarea>"
             + "<button style='width:100%' onclick='addQuotesBulk()'>Lưu tất cả lên TV</button></div>"
-            + "<div class='card'><b>🌙 Tự tắt ban đêm & Tự bật buổi sáng</b>"
+            + "<div class='card'><b>🔐 Khóa mở App chống trẻ tự xem</b>"
+            + "<div class='muted'>Trạng thái mở App hiện tại: <b>" + (bridge.isAppsUnlocked() ? "ĐÃ MỞ KHÓA" : "ĐANG KHÓA (cần PIN)") + "</b></div>"
+            + "<div class='grid' style='margin-top:8px'>"
+            + "<button onclick='api(\"/api/app-lock?unlock=1\")'>🔓 Mở khóa mở App</button>"
+            + "<button class='pink' onclick='api(\"/api/app-lock?unlock=0\")'>🔒 Khóa lại ngay</button></div></div>"
+            + "<div class='card'><b>🌙 Khung giờ TV tự động bật màn hình</b>"
             + "<div class='muted'>Trạng thái: <b>" + (prefs.isNightScheduleEnabled() ? "ĐANG BẬT" : "ĐANG TẮT")
-            + "</b> • Tắt: <b>" + esc(prefs.getNightOffTime()) + "</b> → Bật: <b>" + esc(prefs.getMorningOnTime()) + "</b> (Bấm bất kỳ phím remote để bật thủ công)</div>"
-            + "<div style='display:flex;gap:8px;margin-top:6px'><input id='nOff' value='" + esc(prefs.getNightOffTime()) + "' placeholder='22:30'>"
-            + "<input id='nOn' value='" + esc(prefs.getMorningOnTime()) + "' placeholder='06:30'></div>"
-            + "<div class='grid'><button onclick='api(\"/api/night-schedule?en=1&off=\"+encodeURIComponent(nOff.value)+\"&on=\"+encodeURIComponent(nOn.value))'>💾 Lưu & Bật</button>"
+            + "</b> • Sáng: <b>" + esc(prefs.getSlot1Start()) + "–" + esc(prefs.getSlot1End())
+            + "</b> • Tối: <b>" + esc(prefs.getSlot2Start()) + "–" + esc(prefs.getSlot2End())
+            + "</b> (Ngoài giờ tự tắt, bấm remote để tự bật)</div>"
+            + "<div style='display:flex;gap:6px;margin-top:6px'><input id='s1a' value='" + esc(prefs.getSlot1Start()) + "' placeholder='06:30'>"
+            + "<input id='s1b' value='" + esc(prefs.getSlot1End()) + "' placeholder='07:30'></div>"
+            + "<div style='display:flex;gap:6px'><input id='s2a' value='" + esc(prefs.getSlot2Start()) + "' placeholder='18:00'>"
+            + "<input id='s2b' value='" + esc(prefs.getSlot2End()) + "' placeholder='22:00'></div>"
+            + "<div class='grid'><button onclick='api(\"/api/night-schedule?en=1&s1a=\"+encodeURIComponent(s1a.value)+\"&s1b=\"+encodeURIComponent(s1b.value)+\"&s2a=\"+encodeURIComponent(s2a.value)+\"&s2b=\"+encodeURIComponent(s2b.value))'>💾 Lưu & Bật</button>"
             + "<button class='sm' onclick='api(\"/api/night-schedule?en=" + (prefs.isNightScheduleEnabled() ? "0" : "1") + "\")'>"
             + (prefs.isNightScheduleEnabled() ? "Tắt tự động" : "Bật tự động") + "</button></div></div>"
             + "<div class='card'><b>📅 Lịch trình hàng ngày (Kéo thả ☰ hoặc bấm ▲▼ để đổi thứ tự)</b>" + schedHtml

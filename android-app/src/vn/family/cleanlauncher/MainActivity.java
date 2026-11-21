@@ -135,8 +135,9 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
     private LinearLayout quizOptionsBox;
     private View nightOffOverlay;
     private boolean inNightStandby = false;
-    private String lastNightAutoOffDate = "";
-    private String lastMorningAutoWakeDate = "";
+    private boolean manualWakeOverride = false;
+    private boolean appsUnlocked = false;
+    private String lastAutoWindowEvent = "";
 
     private boolean frameMode = false;
     private int wallpaperIdx = 0;
@@ -843,7 +844,9 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
                     if (event.getAction() == KeyEvent.ACTION_DOWN
                             && keyCode == KeyEvent.KEYCODE_DPAD_DOWN
                             && !prefs.isKidsMode() && !frameMode) {
-                        showAllAppsDialog();
+                        requirePinIfLocked(new Runnable() {
+                            @Override public void run() { showAllAppsDialog(); }
+                        });
                         return true;
                     }
                     return false;
@@ -1061,7 +1064,24 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
         }
     }
 
+    private void requirePinIfLocked(final Runnable onAllowed) {
+        if (!prefs.isAppPinLockEnabled() || appsUnlocked) {
+            onAllowed.run();
+        } else {
+            showPinDialogWithCallback(new Runnable() {
+                @Override public void run() {
+                    appsUnlocked = true;
+                    onAllowed.run();
+                }
+            });
+        }
+    }
+
     private void showPinDialog() {
+        showPinDialogWithCallback(null);
+    }
+
+    private void showPinDialogWithCallback(final Runnable afterUnlock) {
         final StringBuilder pinBuf = new StringBuilder();
         LinearLayout root = createPremiumSheet("🔐 Nhập mã PIN phụ huynh");
         root.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -1100,7 +1120,7 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
                     if (pinBuf.length() == 4) {
                         String code = pinBuf.toString();
                         if (prefs.verifyDynamicPin(code)) {
-                            handlePinSubmit(code, dlg);
+                            handlePinSubmit(code, dlg, afterUnlock);
                         } else {
                             pinBuf.setLength(0);
                             updateDots.run();
@@ -1174,15 +1194,20 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
         if (firstBtn != null) firstBtn.requestFocus();
     }
 
-    private void handlePinSubmit(String code, Dialog dlg) {
+    private void handlePinSubmit(String code, Dialog dlg, Runnable afterUnlock) {
         if (prefs.verifyDynamicPin(code)) {
             if (dlg != null && dlg.isShowing()) dlg.dismiss();
-            prefs.setKidsMode(false);
-            prefs.setSleepLocked(false);
-            sleepGateView.setVisibility(View.GONE);
-            quizGateView.setVisibility(View.GONE);
-            applyModeUi();
-            toast("Đã mở khóa phụ huynh!");
+            appsUnlocked = true;
+            if (afterUnlock != null) {
+                afterUnlock.run();
+            } else {
+                prefs.setKidsMode(false);
+                prefs.setSleepLocked(false);
+                sleepGateView.setVisibility(View.GONE);
+                quizGateView.setVisibility(View.GONE);
+                applyModeUi();
+                toast("Đã mở khóa phụ huynh!");
+            }
         } else {
             toast("Mã PIN không chính xác!");
         }
@@ -1463,7 +1488,13 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
         if (firstItem != null) firstItem.requestFocus();
     }
 
-    private void launchAppEntry(AppEntry app) {
+    private void launchAppEntry(final AppEntry app) {
+        requirePinIfLocked(new Runnable() {
+            @Override public void run() { launchAppEntryInternal(app); }
+        });
+    }
+
+    private void launchAppEntryInternal(AppEntry app) {
         if ("__SETTINGS__".equals(app.pkg)) {
             startActivity(new Intent(Settings.ACTION_SETTINGS));
             return;
@@ -1612,20 +1643,30 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
             }
         }
 
-        // Auto Night Off (22:30) & Auto Morning Wake (06:30) — human key press overrides!
+        // 2 Active Display Windows: 06:30-07:30 and 18:00-22:00 (auto-off outside unless human woke via remote)
         if (prefs.isNightScheduleEnabled()) {
-            if (hhmm.equals(prefs.getNightOffTime()) && !todayTag.equals(lastNightAutoOffDate)) {
-                lastNightAutoOffDate = todayTag;
-                enterNightStandby();
-            } else if (hhmm.equals(prefs.getMorningOnTime()) && !todayTag.equals(lastMorningAutoWakeDate)) {
-                lastMorningAutoWakeDate = todayTag;
+            int curMin = c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE);
+            String s1a = prefs.getSlot1Start(), s1b = prefs.getSlot1End();
+            String s2a = prefs.getSlot2Start(), s2b = prefs.getSlot2End();
+            String evtKey = todayTag + "_" + hhmm;
+
+            if ((hhmm.equals(s1a) || hhmm.equals(s2a)) && !evtKey.equals(lastAutoWindowEvent)) {
+                lastAutoWindowEvent = evtKey;
+                manualWakeOverride = false;
                 wakeFromNightStandby(true);
+            } else if ((hhmm.equals(s1b) || hhmm.equals(s2b)) && !evtKey.equals(lastAutoWindowEvent)) {
+                lastAutoWindowEvent = evtKey;
+                manualWakeOverride = false;
+                enterNightStandby();
+            } else if (!prefs.isWithinActiveWindows(curMin) && !inNightStandby && !manualWakeOverride) {
+                enterNightStandby();
             }
         }
     }
 
     private void enterNightStandby() {
         inNightStandby = true;
+        appsUnlocked = false; // Khóa lại app mỗi khi TV tự tắt nghỉ
         musicManager.stop();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WindowManager.LayoutParams lp = getWindow().getAttributes();
@@ -1635,17 +1676,21 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
         scheduleNightAlarms();
     }
 
-    private void wakeFromNightStandby(boolean isMorningAuto) {
+    private void wakeFromNightStandby(boolean isScheduledAuto) {
         inNightStandby = false;
+        if (!isScheduledAuto) {
+            manualWakeOverride = true; // Con người tự bật bằng remote -> không tự tắt lại cho đến mốc tắt kế tiếp
+        }
+        appsUnlocked = false; // Khi TV vừa bật lên, cần nhập PIN mới mở được app
         nightOffOverlay.setVisibility(View.GONE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WindowManager.LayoutParams lp = getWindow().getAttributes();
         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
         getWindow().setAttributes(lp);
-        if (isMorningAuto) {
-            showFamilyBanner("☀️ " + prefs.getMorningOnTime() + " • Chào buổi sáng!");
+        if (isScheduledAuto) {
+            showFamilyBanner("📺 Chào cả nhà! Khung giờ hoạt động TV đã bắt đầu");
         } else {
-            toast("Đã bật lại màn hình TV thủ công");
+            toast("Đã bật màn hình TV thủ công");
         }
         scheduleNightAlarms();
     }
@@ -1653,10 +1698,11 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
     private void scheduleNightAlarms() {
         try {
             AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            if (am == null) return;
-            if (!prefs.isNightScheduleEnabled()) return;
-            scheduleDailyAlarm(am, prefs.getNightOffTime(), NightScheduleReceiver.ACTION_NIGHT_OFF, 901);
-            scheduleDailyAlarm(am, prefs.getMorningOnTime(), NightScheduleReceiver.ACTION_MORNING_WAKE, 902);
+            if (am == null || !prefs.isNightScheduleEnabled()) return;
+            scheduleDailyAlarm(am, prefs.getSlot1Start(), NightScheduleReceiver.ACTION_MORNING_WAKE, 901);
+            scheduleDailyAlarm(am, prefs.getSlot1End(), NightScheduleReceiver.ACTION_NIGHT_OFF, 902);
+            scheduleDailyAlarm(am, prefs.getSlot2Start(), NightScheduleReceiver.ACTION_MORNING_WAKE, 903);
+            scheduleDailyAlarm(am, prefs.getSlot2End(), NightScheduleReceiver.ACTION_NIGHT_OFF, 904);
         } catch (Exception ignored) {}
     }
 
@@ -1974,11 +2020,23 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
     @Override public void onNightScheduleUpdated() {
         handler.post(new Runnable() {
             @Override public void run() {
+                manualWakeOverride = false;
                 scheduleNightAlarms();
-                toast("🌙 Đã cập nhật lịch tự tắt " + prefs.getNightOffTime() + " → bật " + prefs.getMorningOnTime());
+                updateClockAndSchedule();
+                toast("🌙 Đã lưu khung giờ bật TV: " + prefs.getSlot1Start() + "–" + prefs.getSlot1End()
+                        + " & " + prefs.getSlot2Start() + "–" + prefs.getSlot2End());
             }
         });
     }
+    @Override public void onRemoteAppsLockToggle(final boolean unlock) {
+        handler.post(new Runnable() {
+            @Override public void run() {
+                appsUnlocked = unlock;
+                toast(unlock ? "🔓 Bố mẹ đã MỞ KHÓA mở App" : "🔒 Bố mẹ đã KHÓA mở App");
+            }
+        });
+    }
+    @Override public boolean isAppsUnlocked() { return appsUnlocked; }
     @Override public String getMusicStatus() {
         return musicManager.isPlaying() ? musicManager.getCurrentName() : "Đang tắt";
     }

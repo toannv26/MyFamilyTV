@@ -254,12 +254,36 @@ public class AppPrefs {
     public boolean isNightScheduleEnabled() { return sp.getBoolean("night_sched_on", true); }
     public void setNightScheduleEnabled(boolean v) { sp.edit().putBoolean("night_sched_on", v).apply(); }
 
-    public String getNightOffTime() { return sp.getString("night_off_time", "22:30"); }
-    public String getMorningOnTime() { return sp.getString("morning_on_time", "06:30"); }
-    public void setNightTimes(String offTime, String onTime) {
+    // 2 active display windows: default 06:30-07:30 and 18:00-22:00
+    public String getSlot1Start() { return sp.getString("slot1_start", "06:30"); }
+    public String getSlot1End() { return sp.getString("slot1_end", "07:30"); }
+    public String getSlot2Start() { return sp.getString("slot2_start", "18:00"); }
+    public String getSlot2End() { return sp.getString("slot2_end", "22:00"); }
+
+    public void setActiveSlots(String s1Start, String s1End, String s2Start, String s2End) {
         sp.edit()
-            .putString("night_off_time", offTime)
-            .putString("morning_on_time", onTime)
+            .putString("slot1_start", s1Start)
+            .putString("slot1_end", s1End)
+            .putString("slot2_start", s2Start)
+            .putString("slot2_end", s2End)
             .apply();
+    }
+
+    public boolean isAppPinLockEnabled() { return sp.getBoolean("app_pin_lock_on", true); }
+    public void setAppPinLockEnabled(boolean v) { sp.edit().putBoolean("app_pin_lock_on", v).apply(); }
+
+    public static int toMinutes(String hhmm) {
+        try {
+            String[] p = hhmm.split(":");
+            return Integer.parseInt(p[0].trim()) * 60 + Integer.parseInt(p[1].trim());
+        } catch (Exception e) { return -1; }
+    }
+
+    public boolean isWithinActiveWindows(int curMinutes) {
+        int a1 = toMinutes(getSlot1Start()), b1 = toMinutes(getSlot1End());
+        int a2 = toMinutes(getSlot2Start()), b2 = toMinutes(getSlot2End());
+        boolean in1 = (a1 >= 0 && b1 >= 0 && curMinutes >= a1 && curMinutes < b1);
+        boolean in2 = (a2 >= 0 && b2 >= 0 && curMinutes >= a2 && curMinutes < b2);
+        return in1 || in2;
     }
 }
