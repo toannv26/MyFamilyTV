@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sony Clean Launcher v3 — Tối Giản Gia Đình & Kiểm Soát Trẻ Em</title>
+  <style>
+    :root {
+      --glass: rgba(14, 20, 32, 0.62);
+      --border: rgba(255, 255, 255, 0.15);
+      --accent: #38bdf8;
+      --warm: #f59e0b;
+      --kids: #fb7185;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #05070c;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      gap: 14px;
+      user-select: none;
+    }
+
+    .top-bar-outer {
+      width: 100%;
+      max-width: 1240px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .mode-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      background: #131c2e;
+      color: #cbd5e1;
+      border: 1px solid var(--border);
+      padding: 7px 13px;
+      border-radius: 999px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+    .pill:hover { border-color: #fff; color: #fff; }
+    .pill.active { background: var(--accent); color: #07101c; border-color: var(--accent); font-weight: 700; }
+    .pill.kids.active { background: var(--kids); color: #fff; border-color: var(--kids); }
+    .pill.remote-btn { background: #1e293b; border-color: #38bdf8; color: #7dd3fc; font-weight: 600; }
+
+    .tv-frame {
+      position: relative;
+      width: 100%;
+      max-width: 1240px;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 28px 80px rgba(0,0,0,0.82), 0 0 0 2px #1e293b;
+      background: #0b1120;
+    }
+
+    .wallpaper {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transition: opacity 0.8s ease;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(6,10,18,0.58) 0%, rgba(6,10,18,0.08) 42%, rgba(6,10,18,0.22) 70%, rgba(6,10,18,0.88) 100%);
+      transition: background 0.4s ease;
+    }
+
+    .tv-ui {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 26px 38px 26px;
+    }
+
+    .tv-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .clock-time { font-size: 46px; font-weight: 300; line-height: 1; text-shadow: 0 2px 14px rgba(0,0,0,0.6); }
+    .clock-date { font-size: 14px; color: #e2e8f0; margin-top: 4px; opacity: 0.92; }
+    .weather-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 7px;
+      background: rgba(10, 16, 28, 0.45);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: #e0f2fe;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+    }
+
+    /* Center Quote / Ca dao & Nguyên tắc sống */
+    .quote-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 12px 48px;
+      pointer-events: none;
+    }
+    .quote-tag {
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: #bae6fd;
+      background: rgba(10, 16, 28, 0.42);
+      border: 1px solid rgba(186, 230, 253, 0.25);
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+    .quote-text {
+      max-width: 780px;
+      font-size: 27px;
+      font-weight: 500;
+      line-height: 1.42;
+      color: #ffffff;
+      text-shadow: 0 3px 18px rgba(0, 0, 0, 0.78);
+      transition: opacity 0.5s ease;
+    }
+    .schedule-strip {
+      margin-top: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: rgba(10, 16, 28, 0.46);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: #e2e8f0;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .schedule-item { display: inline-flex; align-items: center; gap: 5px; opacity: 0.85; }
+    .schedule-item.next { color: #fde68a; font-weight: 700; opacity: 1; }
+    .schedule-sep { opacity: 0.35; }
+    .tv-frame.mode-kids .quote-center { display: none; }
+
+    .top-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 8px 13px;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chip:hover { background: #fff; color: #09101d; transform: scale(1.04); }
+    .chip.dns-on { border-color: #34d399; color: #a7f3d0; }
+
+    .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; }
+    .eq span { width: 3px; background: var(--accent); border-radius: 2px; animation: eq 0.9s infinite; }
+    .eq span:nth-child(2) { animation-delay: 0.2s; }
+    .eq span:nth-child(3) { animation-delay: 0.4s; }
+    .eq.paused span { animation: none; height: 4px !important; }
+    @keyframes eq { 0%,100% { height: 4px; } 50% { height: 13px; } }
+
+    .family-banner {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-130px);
+      z-index: 25;
+      background: linear-gradient(90deg, #f59e0b, #ef4444);
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.4s cubic-bezier(.22,1,.36,1);
+    }
+    .family-banner.show { transform: translateX(-50%) translateY(0); }
+
+    .center-row {
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      gap: 12px;
+    }
+    .caption-pill {
+      background: rgba(8,12,20,0.48);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #e2e8f0;
+    }
+    .kids-quota-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(251, 113, 133, 0.22);
+      border: 1px solid rgba(251, 113, 133, 0.65);
+      padding: 8px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      color: #ffe4e6;
+    }
+    .tv-frame.mode-kids .kids-quota-bar { display: inline-flex; }
+
+    /* Minimal Dock (3 Apps + Settings) — Centered & Large */
+    .dock-section { display: flex; flex-direction: column; align-items: center; gap: 12px; transition: all 0.35s ease; }
+    .dock-label {
+      width: 100%;
+      max-width: 920px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .app-dock {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      padding: 8px 4px;
+      width: 100%;
+    }
+    .app-card {
+      flex: 0 0 210px;
+      height: 126px;
+      border-radius: 22px;
+      background: var(--glass);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+    .app-icon {
+      width: 54px; height: 54px; border-radius: 15px;
+      display: grid; place-items: center; font-weight: 800; font-size: 21px; color: #fff;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+    }
+    .app-name { font-size: 16px; font-weight: 600; color: #f8fafc; }
+    .app-card:hover, .app-card.focused {
+      transform: translateY(-6px) scale(1.07);
+      border-color: #fff;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.6), 0 0 0 2.5px #fff;
+      background: rgba(25, 36, 56, 0.9);
+    }
+
+    /* FRAME MODE */
+    .tv-frame.mode-frame .dock-section,
+    .tv-frame.mode-frame .top-chips { opacity: 0; pointer-events: none; transform: translateY(14px); }
+    .tv-frame.mode-frame .clock-time { font-size: 78px; font-weight: 200; }
+    .tv-frame.mode-frame .clock-date { font-size: 19px; }
+
+    /* KIDS MODE */
+    .tv-frame.mode-kids .overlay {
+      background: linear-gradient(180deg, rgba(35,12,55,0.45) 0%, rgba(16,24,52,0.28) 55%, rgba(25,14,48,0.9) 100%);
+    }
+    .tv-frame.mode-kids .app-card { flex: 0 0 230px; height: 136px; border-radius: 24px; border-width: 2px; }
+    .tv-frame.mode-kids .app-icon { width: 60px; height: 60px; font-size: 24px; border-radius: 16px; }
+    .tv-frame.mode-kids .app-name { font-size: 17px; }
+
+    /* GATES */
+    .full-screen-gate {
+      position: absolute;
+      inset: 0;
+      z-index: 18;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 36px;
+    }
+    .full-screen-gate.open { display: flex; }
+
+    #sleepGate { background: radial-gradient(circle at center, #131c3a 0%, #050814 100%); }
+    .sleep-character { font-size: 92px; animation: float 3s ease-in-out infinite; margin-bottom: 14px; }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .sleep-title { font-size: 34px; font-weight: 700; color: #fde68a; margin-bottom: 10px; }
+    .sleep-sub { font-size: 18px; color: #cbd5e1; max-width: 620px; line-height: 1.5; margin-bottom: 22px; }
+    .battery-bar { width: 240px; height: 22px; border: 2px solid #64748b; border-radius: 999px; padding: 3px; margin-bottom: 22px; }
+    .battery-fill { height: 100%; width: 16%; background: linear-gradient(90deg, #f59e0b, #fb7185); border-radius: 999px; animation: charge 2.4s infinite alternate; }
+    @keyframes charge { from { width: 12%; } to { width: 24%; } }
+
+    #quizGate { background: rgba(11, 18, 36, 0.94); backdrop-filter: blur(14px); }
+    .quiz-card {
+      width: 100%; max-width: 680px; background: #142038;
+      border: 2px solid #38bdf8; border-radius: 26px; padding: 28px 32px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+    }
+    .quiz-badge {
+      display: inline-block; background: rgba(56,189,248,0.18); color: #7dd3fc;
+      padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; margin-bottom: 12px;
+    }
+    .quiz-q { font-size: 25px; font-weight: 700; margin-bottom: 20px; line-height: 1.35; }
+    .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .quiz-opt {
+      background: #1d2d4d; border: 2px solid rgba(255,255,255,0.14); color: #fff;
+      padding: 16px; border-radius: 16px; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;
+    }
+    .quiz-opt:hover { border-color: #38bdf8; background: rgba(56,189,248,0.2); transform: scale(1.03); }
+
+    /* MODALS */
+    .modal-bg {
+      position: absolute; inset: 0; z-index: 20;
+      background: rgba(4, 7, 14, 0.76); backdrop-filter: blur(10px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-bg.open { display: flex; }
+    .modal {
+      width: 100%; max-width: 600px; background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.16); border-radius: 20px;
+      padding: 22px 24px; box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .modal-head h3 { font-size: 18px; }
+    .btn-sm {
+      background: rgba(255,255,255,0.12); color: #fff; border: none;
+      padding: 7px 13px; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+    .btn-primary {
+      background: var(--accent); color: #07101c; border: none;
+      padding: 9px 15px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-box { background: #172236; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 13px; }
+    .stat-box .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .stat-box .v { font-size: 18px; font-weight: 700; color: #fff; }
+    .input-row { display: flex; gap: 8px; margin-top: 10px; }
+    .input-row input {
+      flex: 1; background: #172236; border: 1px solid rgba(255,255,255,0.18);
+      color: #fff; padding: 10px 12px; border-radius: 10px; font-size: 14px;
+    }
+
+    .toast {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.94); border: 1px solid var(--accent); color: #fff;
+      padding: 10px 18px; border-radius: 999px; font-size: 13px; z-index: 30;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="top-bar-outer">
+    <div><b>Sony Clean Launcher v3</b> — Tối giản 3 App + Cài đặt • Trẻ em tối đa 45p (+5p × 2 lần câu đố) • Ẩn hoàn toàn quy tắc PIN</div>
+    <div class="mode-pills">
+      <button class="pill active" id="pHome" onclick="setMode('home')">🏠 Màn hình chính</button>
+      <button class="pill" id="pFrame" onclick="setMode('frame')">🖼️ Khung tranh</button>
+      <button class="pill kids" id="pKids" onclick="setMode('kids')">🧸 Trẻ em</button>
+      <button class="pill remote-btn" onclick="openModal('phoneModal')">📱 Giả lập Điện thoại Bố Mẹ</button>
+    </div>
+  </div>
+
+  <div class="tv-frame" id="tvFrame">
+    <div class="wallpaper" id="wallpaper"></div>
+    <div class="overlay"></div>
+
+    <div class="family-banner" id="familyBanner">
+      <span>📢</span><span id="bannerText">Đến giờ ăn cơm rồi cả nhà ơi! 🍚</span>
+    </div>
+
+    <div class="toast" id="toast">Thông báo</div>
+
+    <div class="tv-ui">
+      <div class="tv-header">
+        <div>
+          <div class="clock-time" id="clockTime">12:16</div>
+          <div class="clock-date" id="clockDate">Thứ Bảy, 21/11 • Âm lịch: 13/10</div>
+          <div class="weather-line" id="weatherLine">⛅ 26°C • Hà Nội • Trời mát, ít mây</div>
+        </div>
+
+        <div class="top-chips">
+          <div class="chip" onclick="toggleMusic()">
+            <span class="eq" id="eq"><span></span><span></span><span></span></span>
+            <span id="musicName">Nhạc </span>
+          </div>
+          <button class="chip" onclick="openModal('scheduleModal')">📅 Lịch trình</button>
+          <button class="chip dns-on" id="dnsChip" onclick="toggleDns()">🛡️ Chặn QC DNS: BẬT</button>
+          <button class="chip" onclick="openModal('statsModal')">📊 Thống kê</button>
+          <button class="chip" onclick="openModal('phoneModal')">📱 Điều khiển & Gửi ảnh</button>
+          <button class="chip" onclick="openModal('pinModal')">🔐 Khóa phụ huynh</button>
+        </div>
+      </div>
+
+      <div class="quote-center">
+        <div class="quote-tag" id="quoteTag">✨ CA DAO • NGUYÊN TẮC SỐNG</div>
+        <div class="quote-text" id="quoteText">“Lời nói chẳng mất tiền mua, lựa lời mà nói cho vừa lòng nhau.”</div>
+        <div class="schedule-strip" id="scheduleStrip" onclick="openModal('scheduleModal')" title="Bấm để cấu hình lịch trình & báo thức sáng"></div>
+      </div>
+
+      <div class="center-row" style="flex: 0;">       
+        <div class="kids-quota-bar">
+          <span>⏳ Bé còn: <b id="kidsRemain">15 phút</b> (Đã xem 30/45p • Câu đố thêm: <b id="quizCountText">0/2</b>)</span>
+          <button class="btn-sm" id="btnTryQuiz" onclick="openQuizGate()">🧩 Thử Câu đố (+5p)</button>
+          <button class="btn-sm" onclick="openSleepGate()">😴 TV đi ngủ</button>
+          <button class="btn-sm" onclick="openModal('pinModal')">🔓 Mở khóa</button>
+        </div>
+      </div>
+
+      <div class="dock-section">
+        <div class="dock-label">
+          <span>Phím ← → chọn • Enter mở</span>
+        </div>
+        <div class="app-dock" id="appDock"></div>
+      </div>
+    </div>
+
+    <!-- ANTI-CRY SLEEPING TV GATE -->
+    <div class="full-screen-gate" id="sleepGate">
+      <div class="sleep-character">📺😴🌙</div>
+      <div class="sleep-title">Bạn Tivi buồn ngủ rồi, đang đi sạc pin nhé!</div>
+      <div class="sleep-sub">
+        Hôm nay bé đã xem đủ <b>45 phút</b> rồi. Mình để bạn Tivi nghỉ ngơi nạp năng lượng, Tivi khỏe lại sẽ chơi tiếp cùng bé nha!
+      </div>
+      <div class="battery-bar"><div class="battery-fill"></div></div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn-primary" id="sleepQuizBtn" onclick="openQuizGate()">🧩 Giải 1 câu đố thưởng +5 phút (Còn 2 lần)</button>
+        <button class="btn-sm" onclick="closeGates(); openModal('pinModal');">🔓 Phụ huynh mở khóa</button>
+      </div>
+    </div>
+
+    <!-- QUIZ GATE -->
+    <div class="full-screen-gate" id="quizGate">
+      <div class="quiz-card">
+        <div class="quiz-badge" id="quizBadge">🧩 THỬ THÁCH THÔNG MINH • TRẢ LỜI ĐÚNG THƯỞNG +5 PHÚT (Lần 1/2 hôm nay)</div>
+        <div class="quiz-q" id="quizQ"></div>
+        <div class="quiz-options" id="quizOptions"></div>
+        <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#94a3b8;">
+          <span>Mỗi ngày tối đa 2 lần thưởng (+5 phút / lần)</span>
+          <button class="btn-sm" onclick="closeGates()">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECRET PIN MODAL (KHÔNG HIỂN THỊ GỢI Ý TẠO PIN) -->
+    <div class="modal-bg" id="pinModal">
+      <div class="modal" style="max-width:400px; text-align:center;">
+        <div class="modal-head">
+          <h3>🔐 Nhập mã PIN phụ huynh</h3>
+          <button class="btn-sm" onclick="closeModals()">Đóng</button>
+        </div>
+        <p style="font-size:13px; color:#94a3b8; margin-bottom:12px;">
+          Vui lòng nhập mã PIN 4 số.
+        </p>
+        <div class="input-row">
+          <input type="password" id="pinInput" maxlength="4" placeholder="••••" style="text-align:center; font-size:22px; letter-spacing:8px;" />
+          <button class="btn-primary" onclick="verifyPin()">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE REMOTE SIMULATOR MODAL -->
+    <div class="modal-bg" id="phoneModal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>📱 Điều khiển từ Điện thoại (http://192.168.1.152:8080)</h3>
+          <button class="btn-sm" onclick="closeModals()">Đóng</button>
+        </div>
+        <p style="font-size:13px; color:#cbd5e1; margin-bottom:12px;">
+          Bố mẹ mở trên iPhone/Android (cùng Wi-Fi) để điều khiển từ xa — trẻ không cần biết PIN!
+        </p>
+        <div class="grid-2" style="margin-bottom:12px;">
+          <button class="btn-primary" onclick="remoteToggleKids()">🧸 Bật / Tắt Chế độ Trẻ em</button>
+          <button class="btn-primary" style="background:#f59e0b;" onclick="closeModals(); openSleepGate();">😴 Cho "TV đi ngủ" (Bé không khóc)</button>
+          <button class="btn-primary" style="background:#a78bfa;" onclick="closeModals(); openQuizGate();">🧩 Bắn 1 Câu đố lên TV</button>
+          <button class="btn-primary" style="background:#34d399;" onclick="nextWallpaper()">🖼️ Tải ảnh gia đình mới</button>
+        </div>
+        <div class="stat-box">
+          <div class="k">📢 Bắn thông báo tức thì lên màn hình TV</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin:6px 0;">
+            <button class="btn-sm" onclick="sendFamilyMsg('🍚 Đến giờ ăn cơm rồi cả nhà ơi!')">🍚 Giờ ăn cơm</button>
+            <button class="btn-sm" onclick="sendFamilyMsg('🛁 Tắm rửa chuẩn bị đi ngủ thôi nào!')">🛁 Giờ đi tắm</button>
+            <button class="btn-sm" onclick="sendFamilyMsg('⏰ Còn 5 phút nữa bạn TV đi ngủ nhé!')">⏰ Cảnh báo 5p</button>
+          </div>
+          <div class="input-row">
+            <input id="customMsgInput" placeholder="Gõ lời nhắn bất kỳ hiện lên TV..." />
+            <button class="btn-primary" onclick="sendCustomMsg()">Gửi lên TV</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE & MORNING ALARM MODAL -->
+    <div class="modal-bg" id="scheduleModal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>📅 Lịch trình hàng ngày & Báo thức nhạc thể dục</h3>
+          <button class="btn-sm" onclick="closeModals()">Đóng</button>
+        </div>
+        <div id="scheduleEditorList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"></div>
+        <div class="input-row" style="margin-bottom:12px;">
+          <input id="newSchedTime" placeholder="06:15" style="max-width:90px;" />
+          <input id="newSchedTitle" placeholder="Nội dung (VD: 🏃 Tập thể dục sáng)" />
+          <button class="btn-primary" onclick="addScheduleItem()">+ Thêm</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:#94a3b8;">Cấu hình được trực tiếp từ điện thoại bố mẹ</span>
+          <button class="btn-primary" style="background:#f59e0b;" onclick="triggerMorningExercise()">☀️ Chạy thử Báo thức Thể dục sáng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS MODAL (KHÔNG LỘ CÁCH TẠO PIN) -->
+    <div class="modal-bg" id="statsModal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>📊 Thống kê TV Sony & Thời gian xem của Bé</h3>
+          <button class="btn-sm" onclick="closeModals()">Đóng</button>
+        </div>
+        <div class="grid-2">
+          <div class="stat-box">
+            <div class="k">RAM trống hiện tại (Sony 2.1GB)</div>
+            <div class="v" style="color:#34d399;">410 MB trống</div>
+          </div>
+          <div class="stat-box">
+            <div class="k">App đang ngốn RAM nhất</div>
+            <div class="v" style="color:#fbbf24;">YouTube (142 MB)</div>
+          </div>
+          <div class="stat-box">
+            <div class="k">Bé xem hôm nay (Tối đa 45 phút)</div>
+            <div class="v" style="color:#fb7185;">30 / 45 phút</div>
+          </div>
+          <div class="stat-box">
+            <div class="k">Lượt câu đố thưởng (+5p/lần)</div>
+            <div class="v" id="statsQuizCount">0 / 2 lần hôm nay</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const wallpapers = [
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1400&q=80"
+    ];
+
+    const dailyQuotes = [
+      { tag: "✨ CA DAO VIỆT NAM", text: "“Lời nói chẳng mất tiền mua, lựa lời mà nói cho vừa lòng nhau.”" },
+      { tag: "💛 NGUYÊN TẮC GIA ĐÌNH", text: "“Biết nói lời cảm ơn, xin lỗi và luôn lắng nghe nhau mỗi ngày.”" },
+      { tag: "✨ CA DAO VIỆT NAM", text: "“Công cha như núi Thái Sơn, nghĩa mẹ như nước trong nguồn chảy ra.”" },
+      { tag: "🌱 NGUYÊN TẮC SỐNG", text: "“Trung thực, tử tế và cố gắng tốt hơn chính mình ngày hôm qua.”" }
+    ];
+
+    // Chỉ đúng 3 App + Cài đặt ở màn hình chính!
+    const appSets = {
+      home: [
+        { name: "YouTube Kids", icon: "YK", color: "#db2777" },
+        { name: "FPT Play", icon: "FPT", color: "#ea580c" },
+        { name: "VTV Go", icon: "VTV", color: "#2563eb" },
+        { name: "Cài đặt", icon: "⚙", color: "#475569" }
+      ],
+      kids: [
+        { name: "YouTube Kids", icon: "YK", color: "#db2777" },
+        { name: "Pops Kids", icon: "PK", color: "#7c3aed" },
+        { name: "Nhạc Thiếu Nhi", icon: "🎵", color: "#f59e0b" }
+      ]
+    };
+
+    const quizzes = [
+      { q: "Con vật nào sống dưới nước và biết phun cột nước trên lưng?", opts: ["A. Cá voi 🐋", "B. Con gà 🐔", "C. Con mèo 🐱", "D. Con thỏ 🐰"], ans: 0 },
+      { q: "Phép tính nhanh: 7 + 5 bằng bao nhiêu?", opts: ["A. 11", "B. 12", "C. 13", "D. 14"], ans: 1 },
+      { q: "Trong tiếng Anh, quả Táo đọc là gì?", opts: ["A. Banana", "B. Orange", "C. Apple", "D. Mango"], ans: 2 }
+    ];
+
+    let wpIdx = 0, mode = "home", focusIdx = 0, musicOn = true, dnsOn = true;
+    let kidsRemainMin = 15;
+    let quizUsedToday = 0;
+    const MAX_QUIZ_PER_DAY = 2;
+    const BONUS_MINUTES = 5;
+
+    function updateClock() {
+      const d = new Date();
+      document.getElementById("clockTime").textContent =
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+      const solar = `${days[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+      let lunarStr = "";
+      try {
+        const parts = new Intl.DateTimeFormat("vi-VN-u-ca-chinese", { day: "numeric", month: "numeric" }).formatToParts(d);
+        const lDay = parts.find(p => p.type === "day")?.value || "";
+        const lMonth = (parts.find(p => p.type === "month")?.value || "").replace(/\D/g, "");
+        if (lDay && lMonth) lunarStr = ` • Âm lịch: ${lDay}/${lMonth}`;
+      } catch (e) {}
+      document.getElementById("clockDate").textContent = solar + lunarStr;
+    }
+    updateClock();
+    setInterval(updateClock, 5000);
+
+    let dailySchedule = [
+      { time: "06:15", title: "🏃 Nhạc thể dục sáng", playMusic: true },
+      { time: "07:00", title: "🥣 Ăn sáng đi học", playMusic: false },
+      { time: "19:00", title: "🍚 Ăn tối gia đình", playMusic: false },
+      { time: "21:00", title: "🌙 Chuẩn bị đi ngủ", playMusic: false }
+    ];
+
+    function renderSchedule() {
+      const strip = document.getElementById("scheduleStrip");
+      strip.innerHTML = dailySchedule.map((item, idx) =>
+        `<span class="schedule-item ${idx === 0 ? "next" : ""}"><b>${item.time}</b> ${item.title}</span>`
+      ).join('<span class="schedule-sep">•</span>');
+
+      const editor = document.getElementById("scheduleEditorList");
+      editor.innerHTML = dailySchedule.map((item, idx) => `
+        <div class="stat-box" style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px;">
+          <span><b>${item.time}</b> — ${item.title} ${item.playMusic ? '<span style="color:#38bdf8;font-size:12px;">(🎵 Tự bật nhạc)</span>' : ''}</span>
+          <button class="btn-sm" onclick="removeScheduleItem(${idx})">Xóa</button>
+        </div>
+      `).join("");
+    }
+    function addScheduleItem() {
+      const t = document.getElementById("newSchedTime").value.trim();
+      const title = document.getElementById("newSchedTitle").value.trim();
+      if (!t || !title) return;
+      dailySchedule.push({ time: t, title, playMusic: title.toLowerCase().includes("nhạc") || title.toLowerCase().includes("thể dục") });
+      dailySchedule.sort((a, b) => a.time.localeCompare(b.time));
+      document.getElementById("newSchedTime").value = "";
+      document.getElementById("newSchedTitle").value = "";
+      renderSchedule();
+      showToast("Đã lưu mốc lịch trình mới!");
+    }
+    function removeScheduleItem(idx) {
+      dailySchedule.splice(idx, 1);
+      renderSchedule();
+    }
+    function triggerMorningExercise() {
+      closeModals();
+      musicOn = true;
+      document.getElementById("eq").classList.remove("paused");
+      document.getElementById("musicName").textContent = "Nhạc Thể Dục Sáng";
+      sendFamilyMsg("☀️ 06:15 • Chào buổi sáng! Bật nhạc tập thể dục thôi cả nhà ơi! 🏃‍♂️");
+    }
+    renderSchedule();
+
+    function applyWallpaper() {
+      document.getElementById("wallpaper").style.backgroundImage = `url('${wallpapers[wpIdx]}')`;
+    }
+    applyWallpaper();
+
+    let quoteIdx = 0;
+    function rotateQuote() {
+      const q = dailyQuotes[quoteIdx % dailyQuotes.length];
+      document.getElementById("quoteTag").textContent = q.tag;
+      document.getElementById("quoteText").textContent = q.text;
+      quoteIdx++;
+    }
+    rotateQuote();
+    setInterval(rotateQuote, 7000);
+
+    function nextWallpaper() {
+      wpIdx = (wpIdx + 1) % wallpapers.length;
+      applyWallpaper();
+      closeModals();
+      showToast("Đã nhận ảnh gia đình mới từ điện thoại!");
+    }
+
+    function renderDock() {
+      const list = appSets[mode === "kids" ? "kids" : "home"];
+      const dock = document.getElementById("appDock");
+      dock.innerHTML = "";
+      if (focusIdx >= list.length) focusIdx = 0;
+      list.forEach((a, i) => {
+        const el = document.createElement("div");
+        el.className = "app-card" + (i === focusIdx ? " focused" : "");
+        el.innerHTML = `<div class="app-icon" style="background:${a.color}">${a.icon}</div><div class="app-name">${a.name}</div>`;
+        el.onclick = () => { focusIdx = i; renderDock(); showToast(`Đang mở ${a.name}...`); };
+        dock.appendChild(el);
+      });
+    }
+    renderDock();
+
+    function setMode(m) {
+      mode = m;
+      closeGates();
+      const frame = document.getElementById("tvFrame");
+      frame.classList.remove("mode-frame", "mode-kids");
+      ["pHome","pFrame","pKids"].forEach(id => document.getElementById(id).classList.remove("active"));
+      if (m === "frame") {
+        frame.classList.add("mode-frame");
+        document.getElementById("pFrame").classList.add("active");
+      } else if (m === "kids") {
+        frame.classList.add("mode-kids");
+        document.getElementById("pKids").classList.add("active");
+      } else {
+        document.getElementById("pHome").classList.add("active");
+      }
+      renderDock();
+    }
+
+    function verifyPin() {
+      const val = document.getElementById("pinInput").value.trim();
+      const d = new Date();
+      const hhmm = String(d.getHours()).padStart(2, "0") + String(d.getMinutes()).padStart(2, "0");
+      const ddmm = String(d.getDate()).padStart(2, "0") + String(d.getMonth() + 1).padStart(2, "0");
+      document.getElementById("pinInput").value = "";
+      if (val === hhmm || val === ddmm) {
+        closeModals();
+        closeGates();
+        setMode("home");
+        showToast("Đã mở khóa phụ huynh!");
+      } else {
+        showToast("Mã PIN không chính xác!");
+      }
+    }
+
+    function remoteToggleKids() {
+      closeModals();
+      if (mode === "kids") { setMode("home"); showToast("📱 Bố mẹ đã MỞ KHÓA Chế độ Trẻ em từ xa"); }
+      else { setMode("kids"); showToast("📱 Bố mẹ đã BẬT Chế độ Trẻ em từ xa"); }
+    }
+
+    function updateQuizUI() {
+      const left = MAX_QUIZ_PER_DAY - quizUsedToday;
+      document.getElementById("quizCountText").textContent = `${quizUsedToday}/${MAX_QUIZ_PER_DAY}`;
+      document.getElementById("statsQuizCount").textContent = `${quizUsedToday} / ${MAX_QUIZ_PER_DAY} lần hôm nay`;
+      document.getElementById("kidsRemain").textContent = `${kidsRemainMin} phút`;
+      const sleepBtn = document.getElementById("sleepQuizBtn");
+      if (left <= 0) {
+        sleepBtn.textContent = "🧩 Đã dùng hết 2/2 lượt câu đố hôm nay";
+        sleepBtn.disabled = true;
+      } else {
+        sleepBtn.textContent = `🧩 Giải 1 câu đố thưởng +5 phút (Còn ${left} lần)`;
+        sleepBtn.disabled = false;
+      }
+    }
+
+    function openSleepGate() {
+      updateQuizUI();
+      closeGates();
+      document.getElementById("sleepGate").classList.add("open");
+    }
+
+    function openQuizGate() {
+      if (quizUsedToday >= MAX_QUIZ_PER_DAY) {
+        showToast("Hôm nay bé đã dùng hết 2/2 lượt câu đố thưởng rồi!");
+        return;
+      }
+      closeGates();
+      const q = quizzes[quizUsedToday % quizzes.length];
+      document.getElementById("quizBadge").textContent =
+        `🧩 THỬ THÁCH THÔNG MINH • TRẢ LỜI ĐÚNG THƯỞNG +${BONUS_MINUTES} PHÚT (Lần ${quizUsedToday + 1}/${MAX_QUIZ_PER_DAY} hôm nay)`;
+      document.getElementById("quizQ").textContent = q.q;
+      const box = document.getElementById("quizOptions");
+      box.innerHTML = "";
+      q.opts.forEach((opt, i) => {
+        const b = document.createElement("button");
+        b.className = "quiz-opt";
+        b.textContent = opt;
+        b.onclick = () => {
+          if (i === q.ans) {
+            quizUsedToday++;
+            kidsRemainMin += BONUS_MINUTES;
+            updateQuizUI();
+            closeGates();
+            showToast(`🎉 Chính xác! Thưởng thêm +${BONUS_MINUTES} phút (${quizUsedToday}/${MAX_QUIZ_PER_DAY} lần hôm nay)`);
+          } else {
+            showToast("😅 Chưa đúng rồi, bé thử chọn lại nhé!");
+          }
+        };
+        box.appendChild(b);
+      });
+      document.getElementById("quizGate").classList.add("open");
+    }
+
+    function closeGates() {
+      document.getElementById("sleepGate").classList.remove("open");
+      document.getElementById("quizGate").classList.remove("open");
+    }
+
+    function openModal(id) { closeModals(); document.getElementById(id).classList.add("open"); }
+    function closeModals() { document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("open")); }
+
+    function toggleMusic() {
+      musicOn = !musicOn;
+      document.getElementById("eq").classList.toggle("paused", !musicOn);
+      showToast(musicOn ? "🎵 Đang phát Lofi Chill Online" : "⏸ Đã tạm dừng nhạc");
+    }
+    function toggleDns() {
+      dnsOn = !dnsOn;
+      const c = document.getElementById("dnsChip");
+      c.textContent = dnsOn ? "🛡️ Chặn QC DNS: BẬT" : "🛡️ Chặn QC DNS: TẮT";
+      c.classList.toggle("dns-on", dnsOn);
+      showToast(dnsOn ? "Đã bật AdGuard DNS chặn quảng cáo" : "Đã tắt DNS chặn quảng cáo");
+    }
+
+    let bannerTimer;
+    function sendFamilyMsg(text) {
+      closeModals();
+      document.getElementById("bannerText").textContent = text;
+      const b = document.getElementById("familyBanner");
+      b.classList.add("show");
+      clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(() => b.classList.remove("show"), 4500);
+    }
+    function sendCustomMsg() {
+      const v = document.getElementById("customMsgInput").value.trim();
+      if (v) sendFamilyMsg(v);
+    }
+
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      const list = appSets[mode === "kids" ? "kids" : "home"];
+      if (e.key === "ArrowRight") { focusIdx = (focusIdx + 1) % list.length; renderDock(); }
+      else if (e.key === "ArrowLeft") { focusIdx = (focusIdx - 1 + list.length) % list.length; renderDock(); }
+      else if (e.key === "Escape") { closeModals(); closeGates(); if (mode === "frame") setMode("home"); }
+    });
+  </script>
+</body>
+</html>
