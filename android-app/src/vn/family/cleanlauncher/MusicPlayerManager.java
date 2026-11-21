@@ -20,7 +20,7 @@ public class MusicPlayerManager {
 
     private MediaPlayer player;
     private int localIndex = 0;
-    private boolean playing = false;
+    private volatile boolean playing = false;
     private String currentLabel = "Đang tắt";
     private String currentGenre = "nhacviet";
     private List<File> currentTracks = new ArrayList<>();
@@ -90,7 +90,7 @@ public class MusicPlayerManager {
         return playGenre(ctx, genre, 0);
     }
 
-    public boolean playGenre(final Context ctx, final String genre, int startIdx) {
+    public synchronized boolean playGenre(final Context ctx, final String genre, int startIdx) {
         List<File> tracks = getTracksForGenre(ctx, genre);
         if (tracks.isEmpty()) return false;
         currentGenre = genre;
@@ -102,35 +102,41 @@ public class MusicPlayerManager {
         currentLabel = cleanName;
         stopInternal();
         try {
-            player = new MediaPlayer();
-            player.setAudioAttributes(new AudioAttributes.Builder()
+            final MediaPlayer mpNew = new MediaPlayer();
+            player = mpNew;
+            mpNew.setAudioAttributes(new AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .build());
-            player.setDataSource(track.getAbsolutePath());
-            player.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            mpNew.setDataSource(track.getAbsolutePath());
+            mpNew.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                 @Override public void onCompletion(MediaPlayer mp) {
-                    if (playing && !currentTracks.isEmpty()) {
+                    if (playing && mp == player && !currentTracks.isEmpty()) {
                         playGenre(ctx, currentGenre, (localIndex + 1) % currentTracks.size());
                     }
                 }
             });
-            player.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            mpNew.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                 @Override public void onPrepared(MediaPlayer mp) {
-                    mp.start();
-                    playing = true;
+                    synchronized (MusicPlayerManager.this) {
+                        if (!playing || mp != player) {
+                            try { mp.release(); } catch (Exception ignored) {}
+                            return;
+                        }
+                        mp.start();
+                    }
                     notifyListener();
                 }
             });
-            player.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+            mpNew.setOnErrorListener(new MediaPlayer.OnErrorListener() {
                 @Override public boolean onError(MediaPlayer mp, int what, int extra) {
                     playing = false;
                     notifyListener();
                     return true;
                 }
             });
-            player.prepareAsync();
             playing = true;
+            mpNew.prepareAsync();
             notifyListener();
             return true;
         } catch (Exception e) {
@@ -140,23 +146,25 @@ public class MusicPlayerManager {
         }
     }
 
-    public void toggle(Context ctx) {
+    public synchronized void toggle(Context ctx) {
         if (playing) stop();
         else playGenre(ctx, currentGenre, localIndex);
     }
 
-    public void stop() {
-        stopInternal();
+    public synchronized void stop() {
         playing = false;
+        stopInternal();
         currentLabel = "Đang tắt";
         notifyListener();
     }
 
     private void stopInternal() {
-        if (player != null) {
-            try { player.stop(); } catch (Exception ignored) {}
-            try { player.release(); } catch (Exception ignored) {}
-            player = null;
+        MediaPlayer mp = player;
+        player = null;
+        if (mp != null) {
+            try { if (mp.isPlaying()) mp.stop(); } catch (Exception ignored) {}
+            try { mp.reset(); } catch (Exception ignored) {}
+            try { mp.release(); } catch (Exception ignored) {}
         }
     }
 

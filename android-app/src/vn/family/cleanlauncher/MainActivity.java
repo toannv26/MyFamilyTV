@@ -214,6 +214,15 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        // Tự động tắt nhạc nền ngay khi người dùng mở ứng dụng khác
+        if (musicManager != null && musicManager.isPlaying()) {
+            musicManager.stop();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         handler.removeCallbacksAndMessages(null);
@@ -1262,11 +1271,15 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
             new View.OnClickListener() {
                 @Override public void onClick(View v) { dlg.dismiss(); openYoutubeHotMusic(); }
             });
-        LinearLayout stopTile = createMusicTile("⏹", "Tắt nhạc", musicManager.getCurrentName(), 0xFF334155,
+        LinearLayout stopTile = createMusicTile("⏹", "Tắt nhạc", musicManager.getCurrentName(), 0xFFDC2626,
             new View.OnClickListener() {
-                @Override public void onClick(View v) { dlg.dismiss(); musicManager.stop(); toast("Đã tắt nhạc"); }
+                @Override public void onClick(View v) {
+                    musicManager.stop();
+                    dlg.dismiss();
+                    toast("⏹ Đã tắt nhạc");
+                }
             });
-        LinearLayout.LayoutParams a1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.35f);
+        LinearLayout.LayoutParams a1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         a1.rightMargin = dp(6);
         LinearLayout.LayoutParams a2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         a2.leftMargin = dp(6);
@@ -1279,6 +1292,7 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
     }
 
     private void openYoutubeHotMusic() {
+        if (musicManager != null) musicManager.stop();
         String ytPkg = "com.google.android.youtube.tv";
         try {
             Intent view = new Intent(Intent.ACTION_VIEW,
@@ -1302,6 +1316,7 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
     }
 
     private void launchPackageByName(String pkg, String label) {
+        if (musicManager != null) musicManager.stop();
         Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
         if (i == null) i = getPackageManager().getLaunchIntentForPackage(pkg);
         if (i != null) startActivity(i);
@@ -1496,6 +1511,7 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
 
     private void launchAppEntryInternal(AppEntry app) {
         if ("__SETTINGS__".equals(app.pkg)) {
+            if (musicManager != null) musicManager.stop();
             startActivity(new Intent(Settings.ACTION_SETTINGS));
             return;
         }
@@ -1512,6 +1528,7 @@ public class MainActivity extends Activity implements FamilyWebServer.ControlBri
             openSleepGate();
             return;
         }
+        if (musicManager != null) musicManager.stop();
         Intent launch = getPackageManager().getLeanbackLaunchIntentForPackage(app.pkg);
         if (launch == null) launch = getPackageManager().getLaunchIntentForPackage(app.pkg);
         if (launch != null) {
